@@ -25,6 +25,10 @@ import java.lang.annotation.*;
  * equivalent to applying it on all its public methods. The annotation enables backend monitoring
  * for all methods where it is applied. Backend monitoring is performed via a circuit breaker. See
  * {@link io.github.resilience4j.circuitbreaker.CircuitBreaker} for details.
+ * 
+ * 此注解可以应用于类或特定方法。将其应用于类等同于将其应用于该类的所有公共方法。
+ * 该注解为所有应用它的方法启用后端监控。后端监控通过熔断器执行。
+ * 详细信息请参见 {@link io.github.resilience4j.circuitbreaker.CircuitBreaker}。
  */
 @Retention(value = RetentionPolicy.RUNTIME)
 @Target(value = {ElementType.METHOD, ElementType.TYPE})
@@ -35,15 +39,19 @@ public @interface CircuitBreaker {
 
     /**
      * Name of the circuit breaker.
+     * 熔断器的名称。
      *
      * @return the name of the circuit breaker
+     *         熔断器的名称
      */
     String name();
 
     /**
      * fallbackMethod method name.
+     * 降级方法的方法名。
      *
      * @return fallbackMethod method name.
+     *         降级方法的方法名。
      */
     String fallbackMethod() default "";
 }

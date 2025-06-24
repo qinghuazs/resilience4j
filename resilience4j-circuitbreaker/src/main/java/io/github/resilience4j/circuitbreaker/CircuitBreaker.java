@@ -36,32 +36,48 @@ import java.util.stream.Collectors;
 
 /**
  * A CircuitBreaker instance is thread-safe can be used to decorate multiple requests.
+ * CircuitBreaker实例是线程安全的，可以用来装饰多个请求。
  * <p>
  * A {@link CircuitBreaker} manages the state of a backend system. The CircuitBreaker is implemented
  * via a finite state machine with five states: CLOSED, OPEN, HALF_OPEN, DISABLED AND FORCED_OPEN.
+ * {@link CircuitBreaker} 管理后端系统的状态。熔断器通过有限状态机实现，
+ * 具有五种状态：CLOSED（关闭）、OPEN（开启）、HALF_OPEN（半开）、DISABLED（禁用）和FORCED_OPEN（强制开启）。
  * The CircuitBreaker does not know anything about the backend's state by itself, but uses the
  * information provided by the decorators via {@link CircuitBreaker#onSuccess} and {@link
  * CircuitBreaker#onError} events. Before communicating with the backend, the permission to do so
  * must be obtained via the method {@link CircuitBreaker#tryAcquirePermission()}.
+ * 熔断器本身不了解后端的状态，而是通过装饰器提供的 {@link CircuitBreaker#onSuccess} 和
+ * {@link CircuitBreaker#onError} 事件来获取信息。在与后端通信之前，必须通过
+ * {@link CircuitBreaker#tryAcquirePermission()} 方法获得许可。
  * <p>
  * The state of the CircuitBreaker changes from CLOSED to OPEN when the failure rate is greater than or
  * equal to a (configurable) threshold. Then, all access to the backend is rejected for a (configurable) time
  * duration. No further calls are permitted.
+ * 当失败率大于或等于（可配置的）阈值时，熔断器的状态从CLOSED变为OPEN。
+ * 然后，在（可配置的）时间段内拒绝对后端的所有访问。不允许进一步的调用。
  * <p>
  * After the time duration has elapsed, the CircuitBreaker state changes from OPEN to HALF_OPEN and
  * allows a number of calls to see if the backend is still unavailable or has become available
  * again. If the failure rate is greater than or equal to the configured threshold, the state changes back to OPEN.
  * If the failure rate is below or equal to the threshold, the state changes back to CLOSED.
+ * 时间段过后，熔断器状态从OPEN变为HALF_OPEN，并允许一定数量的调用来检查后端是否仍然不可用
+ * 或已重新可用。如果失败率大于或等于配置的阈值，状态将变回OPEN。
+ * 如果失败率低于或等于阈值，状态将变回CLOSED。
  */
 public interface CircuitBreaker {
 
     /**
      * Returns a supplier which is decorated by a CircuitBreaker.
+     * 返回一个被熔断器装饰的供应商。
      *
      * @param circuitBreaker the CircuitBreaker
+     *                       熔断器
      * @param supplier       the original supplier
+     *                       原始供应商
      * @param <T>            the type of results supplied by this supplier
+     *                       此供应商提供的结果类型
      * @return a supplier which is decorated by a CircuitBreaker.
+     *         被熔断器装饰的供应商
      */
     static <T> CheckedSupplier<T> decorateCheckedSupplier(CircuitBreaker circuitBreaker, CheckedSupplier<T> supplier) {
         return () -> {
@@ -83,11 +99,16 @@ public interface CircuitBreaker {
 
     /**
      * Returns a supplier which is decorated by a CircuitBreaker.
+     * 返回一个被熔断器装饰的供应商。
      *
      * @param circuitBreaker the CircuitBreaker
+     *                       熔断器
      * @param supplier       the original supplier
+     *                       原始供应商
      * @param <T>            the type of the returned CompletionStage's result
+     *                       返回的CompletionStage结果类型
      * @return a supplier which is decorated by a CircuitBreaker.
+     *         被熔断器装饰的供应商
      */
     static <T> Supplier<CompletionStage<T>> decorateCompletionStage(
         CircuitBreaker circuitBreaker,
@@ -432,7 +453,9 @@ public interface CircuitBreaker {
 
     /**
      * Acquires a permission to execute a call, only if one is available at the time of invocation.
+     * 获取执行调用的权限，仅当调用时有可用权限时。
      * If a call is not permitted, the number of not permitted calls is increased.
+     * 如果调用不被允许，不被允许的调用数量会增加。
      * <p>
      * Returns false when the state is OPEN or FORCED_OPEN. Returns true when the state is CLOSED or
      * DISABLED. Returns true when the state is HALF_OPEN and further test calls are allowed.
@@ -440,19 +463,28 @@ public interface CircuitBreaker {
      * the state is HALF_OPEN, the number of allowed test calls is decreased. Important: Make sure
      * to call onSuccess or onError after the call is finished. If the call is cancelled before it
      * is invoked, you have to release the permission again.
+     * 当状态为OPEN或FORCED_OPEN时返回false。当状态为CLOSED或DISABLED时返回true。
+     * 当状态为HALF_OPEN且允许进一步测试调用时返回true。当状态为HALF_OPEN且已达到测试调用数量时返回false。
+     * 如果状态为HALF_OPEN，允许的测试调用数量会减少。重要提示：确保在调用完成后调用onSuccess或onError。
+     * 如果调用在执行前被取消，您必须再次释放权限。
      *
      * @return {@code true} if a permission was acquired and {@code false} otherwise
+     *         如果获得权限则返回{@code true}，否则返回{@code false}
      */
     boolean tryAcquirePermission();
 
     /**
      * Releases a permission.
+     * 释放权限。
      * <p>
      * Should only be used when a permission was acquired but not used. Otherwise use {@link
      * CircuitBreaker#onSuccess(long, TimeUnit)} or
      * {@link CircuitBreaker#onError(long, TimeUnit, Throwable)} to signal a completed or failed call.
+     * 仅当获得权限但未使用时才应使用。否则使用 {@link CircuitBreaker#onSuccess(long, TimeUnit)} 或
+     * {@link CircuitBreaker#onError(long, TimeUnit, Throwable)} 来表示已完成或失败的调用。
      * <p>
      * If the state is HALF_OPEN, the number of allowed test calls is increased by one.
+     * 如果状态为HALF_OPEN，允许的测试调用数量会增加一个。
      */
     void releasePermission();
 
@@ -474,19 +506,26 @@ public interface CircuitBreaker {
 
     /**
      * Records a failed call. This method must be invoked when a call failed.
+     * 记录失败的调用。当调用失败时必须调用此方法。
      *
      * @param duration     The elapsed time duration of the call
+     *                     调用的经过时间
      * @param durationUnit The duration unit
+     *                     时间单位
      * @param throwable    The throwable which must be recorded
+     *                     必须记录的异常
      */
     void onError(long duration, TimeUnit durationUnit, Throwable throwable);
 
     /**
      * Records a successful call. This method must be invoked when a call was
      * successful.
+     * 记录成功的调用。当调用成功时必须调用此方法。
      *
      * @param duration     The elapsed time duration of the call
+     *                     调用的经过时间
      * @param durationUnit The duration unit
+     *                     时间单位
      */
     void onSuccess(long duration, TimeUnit durationUnit);
 
@@ -511,43 +550,55 @@ public interface CircuitBreaker {
     /**
      * Transitions the state machine to CLOSED state. This call is idempotent and will not have
      * any effect if the state machine is already in CLOSED state.
+     * 将状态机转换为CLOSED状态。此调用是幂等的，如果状态机已经处于CLOSED状态，则不会产生任何影响。
      * <p>
      * Should only be used, when you want to force a state transition. State transition are normally
      * done internally.
+     * 仅当您想要强制状态转换时才应使用。状态转换通常在内部完成。
      */
     void transitionToClosedState();
 
     /**
      * Transitions the state machine to OPEN state. This call is idempotent and will not have
      * any effect if the state machine is already in OPEN state.
+     * 将状态机转换为OPEN状态。此调用是幂等的，如果状态机已经处于OPEN状态，则不会产生任何影响。
      * <p>
      * Should only be used, when you want to force a state transition. State transition are normally
      * done internally.
+     * 仅当您想要强制状态转换时才应使用。状态转换通常在内部完成。
      */
     void transitionToOpenState();
 
     /**
      * Same as {@link #transitionToOpenState()} but waits in open state for the given amount of time
      * instead of relaying on configurations to determine it.
+     * 与 {@link #transitionToOpenState()} 相同，但在开启状态下等待给定的时间，
+     * 而不是依赖配置来确定等待时间。
      *
      * @param waitDuration how long should we wait in open state
+     *                     在开启状态下应该等待多长时间
      */
     void transitionToOpenStateFor(Duration waitDuration);
 
     /**
      * Same as {@link #transitionToOpenState()} but waits in open state until the given in time
      * instead of relaying on configurations to determine it.
+     * 与 {@link #transitionToOpenState()} 相同，但在开启状态下等待到给定的时间点，
+     * 而不是依赖配置来确定等待时间。
      *
      * @param waitUntil how long should we wait in open state
+     *                  在开启状态下应该等待到什么时间点
      */
     void transitionToOpenStateUntil(Instant waitUntil);
 
     /**
      * Transitions the state machine to HALF_OPEN state. This call is idempotent and will not have
      * any effect if the state machine is already in HALF_OPEN state.
+     * 将状态机转换为HALF_OPEN状态。此调用是幂等的，如果状态机已经处于HALF_OPEN状态，则不会产生任何影响。
      * <p>
      * Should only be used, when you want to force a state transition. State transition are normally
      * done internally.
+     * 仅当您想要强制状态转换时才应使用。状态转换通常在内部完成。
      */
     void transitionToHalfOpenState();
 
@@ -555,9 +606,13 @@ public interface CircuitBreaker {
      * Transitions the state machine to a DISABLED state, stopping state transition, metrics and
      * event publishing. This call is idempotent and will not have any effect if the
      * state machine is already in DISABLED state.
+     * 将状态机转换为DISABLED状态，停止状态转换、指标收集和事件发布。
+     * 此调用是幂等的，如果状态机已经处于DISABLED状态，则不会产生任何影响。
      * <p>
      * Should only be used, when you want to disable the circuit breaker allowing all calls to pass.
      * To recover from this state you must force a new state transition
+     * 仅当您想要禁用熔断器并允许所有调用通过时才应使用。
+     * 要从此状态恢复，您必须强制进行新的状态转换。
      */
     void transitionToDisabledState();
 
@@ -584,43 +639,55 @@ public interface CircuitBreaker {
 
     /**
      * Returns the name of this CircuitBreaker.
+     * 返回此熔断器的名称。
      *
      * @return the name of this CircuitBreaker
+     *         此熔断器的名称
      */
     String getName();
 
     /**
      * Returns the state of this CircuitBreaker.
+     * 返回此熔断器的状态。
      *
      * @return the state of this CircuitBreaker
+     *         此熔断器的状态
      */
     State getState();
 
     /**
      * Returns the CircuitBreakerConfig of this CircuitBreaker.
+     * 返回此熔断器的配置。
      *
      * @return the CircuitBreakerConfig of this CircuitBreaker
+     *         此熔断器的配置
      */
     CircuitBreakerConfig getCircuitBreakerConfig();
 
     /**
      * Returns the Metrics of this CircuitBreaker.
+     * 返回此熔断器的指标。
      *
      * @return the Metrics of this CircuitBreaker
+     *         此熔断器的指标
      */
     Metrics getMetrics();
 
     /**
      * Returns an unmodifiable map with tags assigned to this CircuitBreaker.
+     * 返回分配给此熔断器的标签的不可修改映射。
      *
      * @return the tags assigned to this CircuitBreaker in an unmodifiable map
+     *         分配给此熔断器的标签的不可修改映射
      */
     Map<String, String> getTags();
 
     /**
      * Returns an EventPublisher which can be used to register event consumers.
+     * 返回一个事件发布器，可用于注册事件消费者。
      *
      * @return an EventPublisher
+     *         事件发布器
      */
     EventPublisher getEventPublisher();
 
@@ -642,10 +709,14 @@ public interface CircuitBreaker {
 
     /**
      * Decorates and executes the decorated Supplier.
+     * 装饰并执行被装饰的供应商。
      *
      * @param supplier the original Supplier
+     *                 原始供应商
      * @param <T>      the type of results supplied by this supplier
+     *                 此供应商提供的结果类型
      * @return the result of the decorated Supplier.
+     *         被装饰供应商的结果
      */
     default <T> T executeSupplier(Supplier<T> supplier) {
         return decorateSupplier(this, supplier).get();
@@ -653,10 +724,14 @@ public interface CircuitBreaker {
 
     /**
      * Returns a supplier which is decorated by a CircuitBreaker.
+     * 返回一个被熔断器装饰的供应商。
      *
      * @param supplier the original supplier
+     *                 原始供应商
      * @param <T>      the type of results supplied by this supplier
+     *                 此供应商提供的结果类型
      * @return a supplier which is decorated by a CircuitBreaker.
+     *         被熔断器装饰的供应商
      */
     default <T> Supplier<T> decorateSupplier(Supplier<T> supplier) {
         return decorateSupplier(this, supplier);
@@ -664,11 +739,16 @@ public interface CircuitBreaker {
 
     /**
      * Decorates and executes the decorated Callable.
+     * 装饰并执行被装饰的可调用对象。
      *
      * @param callable the original Callable
+     *                 原始可调用对象
      * @param <T>      the result type of callable
+     *                 可调用对象的结果类型
      * @return the result of the decorated Callable.
+     *         被装饰可调用对象的结果
      * @throws Exception if unable to compute a result
+     *                   如果无法计算结果
      */
     default <T> T executeCallable(Callable<T> callable) throws Exception {
         return decorateCallable(this, callable).call();
@@ -676,10 +756,14 @@ public interface CircuitBreaker {
 
     /**
      * Returns a callable which is decorated by a CircuitBreaker.
+     * 返回一个被熔断器装饰的可调用对象。
      *
      * @param callable the original Callable
+     *                 原始可调用对象
      * @param <T>      the result type of callable
+     *                 可调用对象的结果类型
      * @return a supplier which is decorated by a CircuitBreaker.
+     *         被熔断器装饰的可调用对象
      */
     default <T> Callable<T> decorateCallable(Callable<T> callable) {
         return decorateCallable(this, callable);
@@ -687,8 +771,10 @@ public interface CircuitBreaker {
 
     /**
      * Decorates and executes the decorated Runnable.
+     * 装饰并执行被装饰的可运行对象。
      *
      * @param runnable the original Runnable
+     *                 原始可运行对象
      */
     default void executeRunnable(Runnable runnable) {
         decorateRunnable(this, runnable).run();
@@ -696,9 +782,12 @@ public interface CircuitBreaker {
 
     /**
      * Returns a runnable which is decorated by a CircuitBreaker.
+     * 返回一个被熔断器装饰的可运行对象。
      *
      * @param runnable the original runnable
+     *                 原始可运行对象
      * @return a runnable which is decorated by a CircuitBreaker.
+     *         被熔断器装饰的可运行对象
      */
     default Runnable decorateRunnable(Runnable runnable) {
         return decorateRunnable(this, runnable);
